@@ -26,8 +26,7 @@ class ProductModel:
     self.name = name
     self.description = description
     self.price = price
-    self.qty = qty
-
+    self.qty = qty 
 
 product = api.model('Product', {
     'id': fields.Integer(readonly=True, description='The Product unique identifier'),
@@ -51,7 +50,9 @@ class ProductsList(Resource):
 		return productsList, 200
 
 @productRoutes.route('/product/<int:id>')
+@productRoutes.response(404, 'Product not found')
 class Products(Resource):
+	@productRoutes.response(200, 'Success')
 	def get(self,id):
 		''' Get a single product based on ID'''
 		single_product_query = "SELECT * from products WHERE id={}".format(id)
@@ -61,6 +62,7 @@ class Products(Resource):
 		else:
 			return product, 200
 
+	@productRoutes.response(204, 'Product deleted')
 	def delete(self,id):
 		''' Delete a single product based on ID'''
 		single_product_query = "SELECT * from products WHERE id={}".format(id)
@@ -70,9 +72,9 @@ class Products(Resource):
 		else:
 			delete_product_query = "DELETE FROM products WHERE id={}".format(id)
 			delete_product = execute_query(delete_product_query)
-			return "Product with id no. {} is deleted.".format(id), 204
+			return '', 204
 
-
+	@productRoutes.response(200, 'Success')
 	@productRoutes.expect(product)
 	def put(self,id):
 		''' Update a single product based on ID'''
@@ -90,6 +92,31 @@ class Products(Resource):
 			update_product_query = "UPDATE products SET name='{}', description='{}', price={}, qty={} WHERE id={}".format(new_name, new_description, new_price, new_qty, id)
 			update_product = execute_read_query(update_product_query)
 			return "Product updated", 200
+
+@productRoutes.route('/product')
+class Products(Resource):
+	
+	@productRoutes.response(201, 'Success')
+	@productRoutes.response(409, 'Product has conflict')
+	@productRoutes.expect(product)
+	def post(self):
+		''' Adds product with ?auto_increment ID'''
+
+		data = api.payload
+		new_name = data["name"]
+		new_description = data["description"]
+		new_price = data["price"]
+		new_qty = data["qty"]
+
+		search_product_query = "SELECT name, description from products WHERE name='{}' and description='{}'".format(new_name, new_description)
+		product = execute_read_query(search_product_query)
+		if(product != []):
+			return "Product already exists.", 409 
+		else:
+			insert_product_query = "INSERT INTO products VALUES(NULL, '{}', '{}', {}, {})".format(new_name, new_description, new_price, new_qty)
+			insert_product = execute_query(insert_product_query)
+			return "Product added", 201
+		
 
 
 # Run Server
